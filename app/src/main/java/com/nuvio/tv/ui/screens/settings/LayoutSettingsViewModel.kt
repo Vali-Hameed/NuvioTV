@@ -19,6 +19,7 @@ import com.nuvio.tv.data.local.TrailerSettingsDataStore
 import com.nuvio.tv.domain.model.CardDepthStyle
 import com.nuvio.tv.domain.model.CardDepthSurface
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
+import com.nuvio.tv.domain.model.ContinueWatchingPriority
 import com.nuvio.tv.domain.model.ContinueWatchingSortMode
 import com.nuvio.tv.domain.model.DiscoverLocation
 import com.nuvio.tv.domain.model.DetailImdbRatingsVisibility
@@ -86,6 +87,8 @@ data class LayoutSettingsUiState(
     val showUnairedNextUp: Boolean = true,
     val continueWatchingEnabled: Boolean = true,
     val continueWatchingSortMode: ContinueWatchingSortMode = ContinueWatchingSortMode.DEFAULT,
+    val isContinueWatchingSplit: Boolean = false,
+    val continueWatchingPriority: ContinueWatchingPriority = ContinueWatchingPriority.SERIES_FIRST,
     val continueWatchingCardStyle: ContinueWatchingCardStyle = ContinueWatchingCardStyle.CARD,
     val customPosterUrlPattern: String = "",
     val customPosterEnabledScreens: Set<com.nuvio.tv.core.poster.CustomPosterScreen> =
@@ -150,6 +153,8 @@ sealed class LayoutSettingsEvent {
     data class SetShowUnairedNextUp(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingSortMode(val mode: ContinueWatchingSortMode) : LayoutSettingsEvent()
+    data class SetContinueWatchingSplit(val enabled: Boolean) : LayoutSettingsEvent()
+    data class SetContinueWatchingPriority(val priority: ContinueWatchingPriority) : LayoutSettingsEvent()
     data class SetContinueWatchingCardStyle(val style: ContinueWatchingCardStyle) : LayoutSettingsEvent()
     data class SetAlwaysShowLandscapeClearlogo(val enabled: Boolean) : LayoutSettingsEvent()
     data object ResetPosterCardStyle : LayoutSettingsEvent()
@@ -437,6 +442,20 @@ class LayoutSettingsViewModel @Inject constructor(
                     updateUiStateIfChanged { it.copy(alwaysShowLandscapeClearlogo = enabled) }
                 }
         }
+        viewModelScope.launch {
+            layoutPreferenceDataStore.isContinueWatchingSplit
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    updateUiStateIfChanged { it.copy(isContinueWatchingSplit = enabled) }
+                }
+        }
+        viewModelScope.launch {
+            layoutPreferenceDataStore.continueWatchingPriority
+                .distinctUntilChanged()
+                .collect { priority ->
+                    updateUiStateIfChanged { it.copy(continueWatchingPriority = priority) }
+                }
+        }
         loadAvailableCatalogs()
     }
 
@@ -489,6 +508,8 @@ class LayoutSettingsViewModel @Inject constructor(
             is LayoutSettingsEvent.SetShowUnairedNextUp -> setShowUnairedNextUp(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingEnabled -> setContinueWatchingEnabled(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingSortMode -> setContinueWatchingSortMode(event.mode)
+            is LayoutSettingsEvent.SetContinueWatchingSplit -> setContinueWatchingSplit(event.enabled)
+            is LayoutSettingsEvent.SetContinueWatchingPriority -> setContinueWatchingPriority(event.priority)
             is LayoutSettingsEvent.SetContinueWatchingCardStyle -> setContinueWatchingCardStyle(event.style)
             is LayoutSettingsEvent.SetAlwaysShowLandscapeClearlogo -> setAlwaysShowLandscapeClearlogo(event.enabled)
             LayoutSettingsEvent.ResetPosterCardStyle -> resetPosterCardStyle()
@@ -901,6 +922,20 @@ class LayoutSettingsViewModel @Inject constructor(
         if (_uiState.value.alwaysShowLandscapeClearlogo == enabled) return
         viewModelScope.launch {
             layoutPreferenceDataStore.setAlwaysShowLandscapeClearlogo(enabled)
+        }
+    }
+
+    private fun setContinueWatchingSplit(enabled: Boolean) {
+        if (_uiState.value.isContinueWatchingSplit == enabled) return
+        viewModelScope.launch {
+            layoutPreferenceDataStore.setContinueWatchingSplit(enabled)
+        }
+    }
+
+    private fun setContinueWatchingPriority(priority: ContinueWatchingPriority) {
+        if (_uiState.value.continueWatchingPriority == priority) return
+        viewModelScope.launch {
+            layoutPreferenceDataStore.setContinueWatchingPriority(priority)
         }
     }
 

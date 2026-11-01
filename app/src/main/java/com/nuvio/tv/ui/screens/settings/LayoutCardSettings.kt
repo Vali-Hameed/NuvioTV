@@ -63,6 +63,7 @@ import com.nuvio.tv.core.poster.CustomPosterScreen
 import com.nuvio.tv.domain.model.CardDepthStyle
 import com.nuvio.tv.domain.model.CardDepthSurface
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
+import com.nuvio.tv.domain.model.ContinueWatchingPriority
 import com.nuvio.tv.domain.model.ContinueWatchingSortMode
 import com.nuvio.tv.domain.model.DEFAULT_CARD_DEPTH_EDGE_COVERAGE
 import com.nuvio.tv.domain.model.DEFAULT_CARD_DEPTH_EDGE_STRENGTH
@@ -81,6 +82,7 @@ internal fun LayoutContinueWatchingSection(
     onEvent: (LayoutSettingsEvent) -> Unit
 ) {
     var showSortModeDialog by rememberSaveable { mutableStateOf(false) }
+    var showPriorityDialog by rememberSaveable { mutableStateOf(false) }
 
     SettingsToggleRow(
         title = stringResource(R.string.layout_cw_enabled),
@@ -113,6 +115,23 @@ internal fun LayoutContinueWatchingSection(
             }
         }
 
+        SettingsToggleRow(
+            title = stringResource(R.string.layout_cw_split),
+            subtitle = stringResource(R.string.layout_cw_split_sub),
+            checked = uiState.isContinueWatchingSplit,
+            onToggle = { onEvent(LayoutSettingsEvent.SetContinueWatchingSplit(!uiState.isContinueWatchingSplit)) }
+        )
+        if (uiState.isContinueWatchingSplit) {
+            SettingsActionRow(
+                title = stringResource(R.string.layout_cw_priority),
+                subtitle = stringResource(R.string.layout_cw_priority_sub),
+                value = when (uiState.continueWatchingPriority) {
+                    ContinueWatchingPriority.SERIES_FIRST -> stringResource(R.string.layout_cw_priority_series_first)
+                    ContinueWatchingPriority.MOVIES_FIRST -> stringResource(R.string.layout_cw_priority_movies_first)
+                },
+                onClick = { showPriorityDialog = true }
+            )
+        }
         val episodeThumbnailsApply = uiState.continueWatchingCardStyle != ContinueWatchingCardStyle.POSTER
         if (episodeThumbnailsApply) {
             SettingsToggleRow(
@@ -151,6 +170,17 @@ internal fun LayoutContinueWatchingSection(
                 ContinueWatchingSortMode.SPLIT_UPCOMING -> stringResource(R.string.layout_cw_sort_split_upcoming)
             },
             onClick = { showSortModeDialog = true }
+        )
+    }
+
+    if (showPriorityDialog) {
+        ContinueWatchingPriorityDialog(
+            currentPriority = uiState.continueWatchingPriority,
+            onPrioritySelected = { priority ->
+                onEvent(LayoutSettingsEvent.SetContinueWatchingPriority(priority))
+                showPriorityDialog = false
+            },
+            onDismiss = { showPriorityDialog = false }
         )
     }
 
@@ -474,6 +504,36 @@ private fun CwStyleCard(
             }
         }
     }
+}
+
+@Composable
+private fun ContinueWatchingPriorityDialog(
+    currentPriority: ContinueWatchingPriority,
+    onPrioritySelected: (ContinueWatchingPriority) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        SettingsPickerOption(
+            ContinueWatchingPriority.SERIES_FIRST,
+            stringResource(R.string.layout_cw_priority_series_first),
+            stringResource(R.string.layout_cw_priority_series_first_desc)
+        ),
+        SettingsPickerOption(
+            ContinueWatchingPriority.MOVIES_FIRST,
+            stringResource(R.string.layout_cw_priority_movies_first),
+            stringResource(R.string.layout_cw_priority_movies_first_desc)
+        )
+    )
+
+    SettingsSingleChoiceDialog(
+        title = stringResource(R.string.layout_cw_priority),
+        options = options,
+        selectedValue = currentPriority,
+        onOptionSelected = onPrioritySelected,
+        onDismiss = onDismiss,
+        width = 420.dp,
+        maxHeight = 280.dp
+    )
 }
 
 @Composable

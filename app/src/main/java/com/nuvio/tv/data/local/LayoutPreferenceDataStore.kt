@@ -22,6 +22,7 @@ import com.nuvio.tv.domain.model.CardDepthStyle
 import com.nuvio.tv.domain.model.CardDepthSurface
 import com.nuvio.tv.domain.model.Collection
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
+import com.nuvio.tv.domain.model.ContinueWatchingPriority
 import com.nuvio.tv.domain.model.ContinueWatchingSortMode
 import com.nuvio.tv.domain.model.DEFAULT_CARD_DEPTH_EDGE_COVERAGE
 import com.nuvio.tv.domain.model.DEFAULT_CARD_DEPTH_EDGE_STRENGTH
@@ -117,6 +118,8 @@ class LayoutPreferenceDataStore @Inject constructor(
     private val nextUpFromFurthestEpisodeKey = booleanPreferencesKey("next_up_from_furthest_episode")
     private val blurContinueWatchingNextUpKey = booleanPreferencesKey("blur_continue_watching_next_up")
     private val continueWatchingSortModeKey = stringPreferencesKey("continue_watching_sort_mode")
+    private val isContinueWatchingSplitKey = booleanPreferencesKey("is_continue_watching_split")
+    private val continueWatchingPriorityKey = stringPreferencesKey("continue_watching_priority")
     private val detailPageTrailerButtonEnabledKey = booleanPreferencesKey("detail_page_trailer_button_enabled")
     private val preferExternalMetaAddonDetailKey = booleanPreferencesKey("prefer_external_meta_addon_detail")
     private val modernHeroFullScreenBackdropKey = booleanPreferencesKey("modern_hero_full_screen_backdrop")
@@ -394,6 +397,16 @@ class LayoutPreferenceDataStore @Inject constructor(
         val stored = prefs[continueWatchingSortModeKey] ?: ContinueWatchingSortMode.DEFAULT.name
         runCatching { ContinueWatchingSortMode.valueOf(stored) }
             .getOrDefault(ContinueWatchingSortMode.DEFAULT)
+    }
+
+    val isContinueWatchingSplit: Flow<Boolean> = profileFlow { prefs ->
+        prefs[isContinueWatchingSplitKey] ?: false
+    }
+
+    val continueWatchingPriority: Flow<ContinueWatchingPriority> = profileFlow { prefs ->
+        val stored = prefs[continueWatchingPriorityKey] ?: ContinueWatchingPriority.SERIES_FIRST.name
+        runCatching { ContinueWatchingPriority.valueOf(stored) }
+            .getOrDefault(ContinueWatchingPriority.SERIES_FIRST)
     }
 
     val detailPageTrailerButtonEnabled: Flow<Boolean> = profileFlow { prefs ->
@@ -815,6 +828,18 @@ class LayoutPreferenceDataStore @Inject constructor(
     suspend fun setContinueWatchingSortMode(mode: ContinueWatchingSortMode) {
         store().edit { prefs ->
             prefs[continueWatchingSortModeKey] = mode.name
+        }
+    }
+
+    suspend fun setContinueWatchingSplit(enabled: Boolean) {
+        store().edit { prefs ->
+            prefs[isContinueWatchingSplitKey] = enabled
+        }
+    }
+
+    suspend fun setContinueWatchingPriority(priority: ContinueWatchingPriority) {
+        store().edit { prefs ->
+            prefs[continueWatchingPriorityKey] = priority.name
         }
     }
 

@@ -1108,6 +1108,16 @@
     <string name="layout_cw_sort_split_upcoming">Separate Upcoming Row</string>
     <string name="layout_cw_sort_split_upcoming_desc">Move unaired episodes to a separate Upcoming row</string>
     <string name="upcoming_section_title">Upcoming</string>
+    <string name="continue_watching_series_title">Continue Watching — TV Shows</string>
+    <string name="continue_watching_movies_title">Continue Watching — Movies</string>
+    <string name="layout_cw_split">Split TV Shows &amp; Movies</string>
+    <string name="layout_cw_split_sub">Show separate horizontal rows for TV Shows and Movies on Home</string>
+    <string name="layout_cw_priority">Split Rail Priority</string>
+    <string name="layout_cw_priority_sub">Which category appears first when split view is enabled</string>
+    <string name="layout_cw_priority_series_first">TV Shows First</string>
+    <string name="layout_cw_priority_series_first_desc">Show Continue Watching — TV Shows above Movies</string>
+    <string name="layout_cw_priority_movies_first">Movies First</string>
+    <string name="layout_cw_priority_movies_first_desc">Show Continue Watching — Movies above TV Shows</string>
     <string name="layout_trailer_button">Show Trailer Button</string>
     <string name="layout_trailer_button_sub">Show trailer button on detail page (only when trailer is available).</string>
     <string name="layout_trailer_play_in_background">Play in Background</string>
