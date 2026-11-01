@@ -19,6 +19,9 @@ internal data class ModernHomePresentationInput(
     val catalogRows: List<CatalogRow>,
     val continueWatchingItems: List<ContinueWatchingItem>,
     val upcomingItems: List<ContinueWatchingItem>,
+    val isContinueWatchingSplit: Boolean = false,
+    val continueWatchingPriority: com.nuvio.tv.domain.model.ContinueWatchingPriority =
+        com.nuvio.tv.domain.model.ContinueWatchingPriority.SERIES_FIRST,
     val useLandscapePosters: Boolean,
     val showCatalogTypeSuffix: Boolean,
     val showFullReleaseDate: Boolean,
@@ -48,7 +51,7 @@ internal fun buildModernHomePresentation(
         val catalogRowLimit = maxCatalogRows?.coerceAtLeast(0)
         var renderedCatalogRows = 0
 
-        if (input.continueWatchingItems.isNotEmpty()) {
+        if (!input.isContinueWatchingSplit && input.continueWatchingItems.isNotEmpty()) {
             val reuseContinueWatchingRow =
                 cache.continueWatchingRow != null &&
                     cache.continueWatchingItems == input.continueWatchingItems &&
@@ -91,6 +94,39 @@ internal fun buildModernHomePresentation(
         }
 
         // Upcoming row (SPLIT_UPCOMING mode)
+        if (input.isContinueWatchingSplit && input.continueWatchingItems.isNotEmpty()) {
+            val cwUiState = buildContinueWatchingUiState(
+                items = input.continueWatchingItems,
+                isSplit = true,
+                priority = input.continueWatchingPriority
+            ) as? ContinueWatchingUiState.Separate
+            val strContinueWatchingSeries = localizedContext.getString(R.string.continue_watching_series_title)
+            val strContinueWatchingMovies = localizedContext.getString(R.string.continue_watching_movies_title)
+            cwUiState?.orderedRails?.forEach { rail ->
+                val (rowKey, rowTitle) = when (rail.category) {
+                    ContinueWatchingMediaCategory.SERIES -> MODERN_CONTINUE_WATCHING_SERIES_ROW_KEY to strContinueWatchingSeries
+                    ContinueWatchingMediaCategory.MOVIES -> MODERN_CONTINUE_WATCHING_MOVIES_ROW_KEY to strContinueWatchingMovies
+                }
+                add(
+                    HeroCarouselRow(
+                        key = rowKey,
+                        title = rowTitle,
+                        globalRowIndex = -1,
+                        items = rail.items.map { item ->
+                            buildContinueWatchingItem(
+                                item = item,
+                                useLandscapePosters = input.useLandscapePosters,
+                                showImdbRatings = input.showImdbRatings,
+                                detailImdbRatingsVisibility = input.detailImdbRatingsVisibility,
+                                airsDateTemplate = strAirsDate,
+                                upcomingLabel = strUpcoming,
+                                context = localizedContext
+                            )
+                        }.asStable()
+                    )
+                )
+            }
+        }
         val strUpcomingSectionTitle = localizedContext.getString(R.string.upcoming_section_title)
         if (input.upcomingItems.isNotEmpty()) {
             val reuseUpcomingRow =

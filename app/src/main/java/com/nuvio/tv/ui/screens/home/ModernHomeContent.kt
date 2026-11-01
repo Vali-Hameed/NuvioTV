@@ -456,7 +456,7 @@ fun ModernHomeContent(
 
         if (!restoredFromSavedState.value && focusState.hasSavedFocus) {
             val savedRowKey = focusState.focusedRowKey ?: when {
-                focusState.focusedRowIndex == -1 && uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty() -> "continue_watching"
+                focusState.focusedRowIndex == -1 && uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty() -> carouselRows.list.firstOrNull { isContinueWatchingRowKey(it.key) }?.key ?: "continue_watching"
                 focusState.focusedRowIndex >= 0 -> rowKeyByGlobalRowIndex.map[focusState.focusedRowIndex]
                 else -> null
             }
@@ -1280,9 +1280,13 @@ fun ModernHomeContent(
             item = selectedOptionsItem,
             onDismiss = { optionsItem.value = null },
             onRemove = {
-                val targetIndex = if (uiState.continueWatchingItems.size <= 1) null
-                else (lastFocusedContinueWatchingIndex.intValue).coerceAtMost(uiState.continueWatchingItems.size - 2).coerceAtLeast(0)
-                pendingRowFocusKey.value = if (targetIndex != null) "continue_watching" else null
+
+
+                val activeCwRowKey = activeRowKey.value?.takeIf { isContinueWatchingRowKey(it) } ?: "continue_watching"
+                val activeCwRowSize = rowByKey.map[activeCwRowKey]?.items?.list?.size ?: uiState.continueWatchingItems.size
+                val targetIndex = if (activeCwRowSize <= 1) null
+                else (lastFocusedContinueWatchingIndex.intValue).coerceAtMost(activeCwRowSize - 2).coerceAtLeast(0)
+                pendingRowFocusKey.value = if (targetIndex != null) activeCwRowKey else null
                 pendingRowFocusIndex.value = targetIndex
                 pendingRowFocusNonce.intValue++
                 onRemoveContinueWatching(

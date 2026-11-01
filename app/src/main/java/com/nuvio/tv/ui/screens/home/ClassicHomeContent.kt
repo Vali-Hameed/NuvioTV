@@ -229,6 +229,14 @@ fun ClassicHomeContent(
     val upcomingListState = rememberLazyListState()
     val lastFocusedCwIndex = rememberSaveable { mutableIntStateOf(-1) }
     val lastFocusedUpcomingIndex = rememberSaveable { mutableIntStateOf(-1) }
+    val cwSeriesItemFocusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
+    val cwMoviesItemFocusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
+    val cwSeriesRowFocusRequester = remember { FocusRequester() }
+    val cwMoviesRowFocusRequester = remember { FocusRequester() }
+    val cwSeriesListState = rememberLazyListState()
+    val cwMoviesListState = rememberLazyListState()
+    val lastFocusedCwSeriesIndex = rememberSaveable { mutableIntStateOf(-1) }
+    val lastFocusedCwMoviesIndex = rememberSaveable { mutableIntStateOf(-1) }
 
     // Improved Back navigation: when focused item is not the first in a row,
     // scroll the row to the start and focus the first item instead of opening the sidebar.
@@ -240,19 +248,26 @@ fun ClassicHomeContent(
     val activeRowKeyState = remember { mutableStateOf<String?>(null) }
     val cwPendingScrollToStart = remember { mutableIntStateOf(0) }
     val upcomingPendingScrollToStart = remember { mutableIntStateOf(0) }
+    val cwSeriesPendingScrollToStart = remember { mutableIntStateOf(0) }
+    val cwMoviesPendingScrollToStart = remember { mutableIntStateOf(0) }
     BackHandler(enabled = contentHasFocus.value && run {
         val rowKey = activeRowKeyState.value ?: return@run false
-        val isCwRow = rowKey == "continue_watching" || rowKey == "upcoming_section"
+        val isCwRow = isContinueWatchingRowKey(rowKey) || rowKey == "upcoming_section"
         val itemIndex = if (isCwRow) cwFocusedIndex.intValue else (rowFocusedItemIndex[rowKey] ?: 0)
         itemIndex > 0
     }) {
         val rowKey = activeRowKeyState.value ?: return@BackHandler
-        val isCw = rowKey == "continue_watching"
+        val isCw = isContinueWatchingRowKey(rowKey)
         val isUpcoming = rowKey == "upcoming_section"
         if (isCw || isUpcoming) {
             cwFocusedIndex.intValue = 0
             currentFocusSnapshot.itemIndex = 0
-            if (isCw) cwPendingScrollToStart.intValue++ else upcomingPendingScrollToStart.intValue++
+            when (rowKey) {
+                "continue_watching" -> cwPendingScrollToStart.intValue++
+                MODERN_CONTINUE_WATCHING_SERIES_ROW_KEY -> cwSeriesPendingScrollToStart.intValue++
+                MODERN_CONTINUE_WATCHING_MOVIES_ROW_KEY -> cwMoviesPendingScrollToStart.intValue++
+                else -> upcomingPendingScrollToStart.intValue++
+            }
         } else {
             val listState = rowStates[rowKey]
             rowFocusedItemIndex[rowKey] = 0
@@ -443,7 +458,10 @@ fun ClassicHomeContent(
             val rows = latestVisibleHomeRows.value
             // Offset for hero + CW sections that precede homeRows in LazyColumn
             val heroOffset = if (uiState.heroSectionEnabled && uiState.heroItems.isNotEmpty()) 1 else 0
-            val cwOffset = if (uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty()) 1 else 0
+            val cwOffset = if (!uiState.continueWatchingEnabled) 0 else when (val cw = uiState.continueWatchingUiState) {
+                is ContinueWatchingUiState.Combined -> if (cw.items.isNotEmpty()) 1 else 0
+                is ContinueWatchingUiState.Separate -> cw.orderedRails.size
+            } + (if (uiState.upcomingItems.isNotEmpty()) 1 else 0)
             val rowsOffset = heroOffset + cwOffset
             for (idx in firstVisible.coerceAtLeast(0)..(lastVisible + prefetchAhead)) {
                 val rowIdx = idx - rowsOffset
@@ -622,7 +640,7 @@ fun ClassicHomeContent(
             }
         }
 
-        if (uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty()) {
+        if (uiState.continueWatchingEnabled && !uiState.isContinueWatchingSplit && uiState.continueWatchingItems.isNotEmpty()) {
             item(key = "continue_watching", contentType = "continue_watching") {
                 LaunchedEffect(cwPendingScrollToStart.intValue) {
                     if (cwPendingScrollToStart.intValue > 0) {
@@ -705,6 +723,106 @@ fun ClassicHomeContent(
                     posterTitleOverride = classicPosterTitleStyle,
                     listState = cwListState
                 )
+            }
+        }
+
+        if (uiState.continueWatchingEnabled && uiState.isContinueWatchingSplit) {
+            val splitState = uiState.continueWatchingUiState as? ContinueWatchingUiState.Separate
+            splitState?.orderedRails?.forEachIndexed { railIndex, rail ->
+                val isSeriesRail = rail.category == ContinueWatchingMediaCategory.SERIES
+                val railRowKey = if (isSeriesRail) MODERN_CONTINUE_WATCHING_SERIES_ROW_KEY else MODERN_CONTINUE_WATCHING_MOVIES_ROW_KEY
+                val railPendingScroll = if (isSeriesRail) cwSeriesPendingScrollToStart else cwMoviesPendingScrollToStart
+                val railListState = if (isSeriesRail) cwSeriesListState else cwMoviesListState
+                val railRowFocusRequester = if (isSeriesRail) cwSeriesRowFocusRequester else cwMoviesRowFocusRequester
+                val railItemFocusRequesters = if (isSeriesRail) cwSeriesItemFocusRequesters else cwMoviesItemFocusRequesters
+                val railLastFocusedIndex = if (isSeriesRail) lastFocusedCwSeriesIndex else lastFocusedCwMoviesIndex
+                item(key = railRowKey, contentType = "continue_watching") {
+                    LaunchedEffect(railPendingScroll.intValue) {
+                        if (railPendingScroll.intValue > 0) {
+                            railListState.scrollToItem(0, 0)
+                            railRowFocusRequester.let { runCatching { it.requestFocus() } }
+                            railPendingScroll.intValue = 0
+                        }
+                    }
+                    ContinueWatchingSection(
+                        items = remember(
+                            rail.items,
+                            uiState.customPosterUrlPattern,
+                            uiState.customPosterEnabledScreens,
+                        ) {
+                            rail.items.withCustomPosterUrls(
+                                com.nuvio.tv.core.poster.patternForScreen(uiState.customPosterUrlPattern, com.nuvio.tv.core.poster.CustomPosterScreen.CONTINUE_WATCHING, uiState.customPosterEnabledScreens)
+                            )
+                        },
+                        title = stringResource(
+                            if (isSeriesRail) R.string.continue_watching_series_title
+                            else R.string.continue_watching_movies_title
+                        ),
+                        onItemClick = { item ->
+                            onContinueWatchingClick(item)
+                        },
+                        onStartFromBeginning = onContinueWatchingStartFromBeginning,
+                        showManualPlayOption = showContinueWatchingManualPlayOption,
+                        onPlayManually = onContinueWatchingPlayManually,
+                        onDetailsClick = { item ->
+                            onNavigateToDetail(
+                                when (item) {
+                                    is ContinueWatchingItem.InProgress -> item.progress.contentId
+                                    is ContinueWatchingItem.NextUp -> item.info.contentId
+                                },
+                                when (item) {
+                                    is ContinueWatchingItem.InProgress -> item.progress.contentType
+                                    is ContinueWatchingItem.NextUp -> item.info.contentType
+                                },
+                                ""
+                            )
+                        },
+                        onRemoveItem = { item ->
+                            val contentId = when (item) {
+                                is ContinueWatchingItem.InProgress -> item.progress.contentId
+                                is ContinueWatchingItem.NextUp -> item.info.contentId
+                            }
+                            val season = when (item) {
+                                is ContinueWatchingItem.InProgress -> item.progress.season
+                                is ContinueWatchingItem.NextUp -> item.info.seedSeason
+                            }
+                            val episode = when (item) {
+                                is ContinueWatchingItem.InProgress -> item.progress.episode
+                                is ContinueWatchingItem.NextUp -> item.info.seedEpisode
+                            }
+                            val isNextUp = item is ContinueWatchingItem.NextUp
+                            onRemoveContinueWatching(contentId, season, episode, isNextUp)
+                        },
+                        focusedItemIndex = when {
+                            focusState.hasSavedFocus && focusState.focusedRowKey == railRowKey -> focusState.focusedItemIndex
+                            shouldRequestInitialFocus && !heroVisible && railIndex == 0 -> 0
+                            else -> -1
+                        },
+                        onItemFocused = { itemIndex ->
+                            currentFocusSnapshot.rowIndex = -1
+                            currentFocusSnapshot.itemIndex = itemIndex
+                            currentFocusSnapshot.rowKey = railRowKey
+                            activeRowKeyState.value = railRowKey
+                            cwFocusedIndex.intValue = itemIndex
+                            onFocusedRowKeyChanged(null)
+                            if (uiState.classicFocusGradientEnabled) {
+                                focusedArtwork = rail.items.getOrNull(itemIndex)
+                                    ?.toClassicFocusArtwork(uiState.focusedPosterBackdropExpandEnabled)
+                            }
+                        },
+                        blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
+                        useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
+                        focusRequesters = railItemFocusRequesters,
+                        rowFocusRequester = railRowFocusRequester,
+                        lastFocusedIndexState = railLastFocusedIndex,
+                        cardWidth = classicContinueWatchingCardWidth,
+                        imageHeight = classicContinueWatchingImageHeight,
+                        cardStyle = uiState.continueWatchingCardStyle,
+                        cornerRadius = posterCardStyle.cornerRadius,
+                        posterTitleOverride = classicPosterTitleStyle,
+                        listState = railListState
+                    )
+                }
             }
         }
 

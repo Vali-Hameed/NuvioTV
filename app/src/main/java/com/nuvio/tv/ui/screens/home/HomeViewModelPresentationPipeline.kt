@@ -324,6 +324,8 @@ internal fun HomeViewModel.observeModernHomePresentationPipeline() {
                     catalogRows = state.catalogRows,
                     continueWatchingItems = overlay.continueWatchingItems,
                     upcomingItems = overlay.upcomingItems,
+                    isContinueWatchingSplit = state.isContinueWatchingSplit,
+                    continueWatchingPriority = state.continueWatchingPriority,
                     useLandscapePosters = state.modernLandscapePostersEnabled,
                     showCatalogTypeSuffix = state.catalogTypeSuffixEnabled,
                     showFullReleaseDate = state.showFullReleaseDate,
@@ -340,6 +342,8 @@ internal fun HomeViewModel.observeModernHomePresentationPipeline() {
                 old.homeRows === new.homeRows
                     && old.continueWatchingItems == new.continueWatchingItems
                     && old.upcomingItems == new.upcomingItems
+                    && old.isContinueWatchingSplit == new.isContinueWatchingSplit
+                    && old.continueWatchingPriority == new.continueWatchingPriority
                     && old.useLandscapePosters == new.useLandscapePosters
                     && old.showCatalogTypeSuffix == new.showCatalogTypeSuffix
                     && old.showFullReleaseDate == new.showFullReleaseDate

@@ -532,6 +532,21 @@ class HomeViewModel @Inject constructor(
                 }
         }
         viewModelScope.launch {
+            combine(
+                layoutPreferenceDataStore.isContinueWatchingSplit.distinctUntilChanged(),
+                layoutPreferenceDataStore.continueWatchingPriority.distinctUntilChanged()
+            ) { isSplit, priority ->
+                isSplit to priority
+            }.collect { (isSplit, priority) ->
+                _uiState.update {
+                    it.copy(
+                        isContinueWatchingSplit = isSplit,
+                        continueWatchingPriority = priority
+                    )
+                }
+                }
+        }
+        viewModelScope.launch {
             var initialPattern = true
             layoutPreferenceDataStore.customPosterUrlPattern
                 .distinctUntilChanged()

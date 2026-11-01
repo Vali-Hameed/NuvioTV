@@ -5,6 +5,9 @@ import com.nuvio.tv.core.tracking.TrackingMembershipRemovalConfirmation
 import com.nuvio.tv.data.local.StartupAuthNotice
 import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
+import com.nuvio.tv.domain.model.ContinueWatchingPriority
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import com.nuvio.tv.domain.model.Collection
 import com.nuvio.tv.domain.model.FocusedPosterTrailerPlaybackTarget
 import com.nuvio.tv.domain.model.HomeImdbRatingsVisibility
@@ -67,6 +70,8 @@ data class HomeUiState(
     val blurUnwatchedEpisodes: Boolean = false,
     val useEpisodeThumbnailsInCw: Boolean = true,
     val continueWatchingEnabled: Boolean = true,
+    val isContinueWatchingSplit: Boolean = false,
+    val continueWatchingPriority: ContinueWatchingPriority = ContinueWatchingPriority.SERIES_FIRST,
     val continueWatchingCardStyle: ContinueWatchingCardStyle = ContinueWatchingCardStyle.CARD,
     val heroEnrichmentEnabled: Boolean = false,
     val startupAuthNotice: StartupAuthNotice? = null,
@@ -77,6 +82,95 @@ data class HomeUiState(
     val mdbListShowOnHero: Boolean = false,
     val mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER
 )
+
+@Immutable
+data class ContinueWatchingRail(
+    val category: ContinueWatchingMediaCategory,
+    val items: List<ContinueWatchingItem>
+)
+
+val HomeUiState.continueWatchingUiState: ContinueWatchingUiState
+    get() = buildContinueWatchingUiState(
+        items = if (continueWatchingEnabled) continueWatchingItems else emptyList(),
+        isSplit = isContinueWatchingSplit,
+        priority = continueWatchingPriority
+    )
+
+enum class ContinueWatchingMediaCategory {
+    SERIES,
+    MOVIES
+}
+
+@Immutable
+sealed interface ContinueWatchingUiState {
+    @Immutable
+    data class Combined(
+        val items: List<ContinueWatchingItem>
+    ) : ContinueWatchingUiState
+
+    @Immutable
+    data class Separate(
+        val seriesItems: List<ContinueWatchingItem>,
+        val movieItems: List<ContinueWatchingItem>,
+        val priority: ContinueWatchingPriority
+    ) : ContinueWatchingUiState {
+        val orderedRails: List<ContinueWatchingRail>
+            get() {
+                val rails = when (priority) {
+                    ContinueWatchingPriority.SERIES_FIRST -> listOf(
+                        ContinueWatchingRail(ContinueWatchingMediaCategory.SERIES, seriesItems),
+                        ContinueWatchingRail(ContinueWatchingMediaCategory.MOVIES, movieItems)
+                    )
+                    ContinueWatchingPriority.MOVIES_FIRST -> listOf(
+                        ContinueWatchingRail(ContinueWatchingMediaCategory.MOVIES, movieItems),
+                        ContinueWatchingRail(ContinueWatchingMediaCategory.SERIES, seriesItems)
+                    )
+                }
+                return rails.filter { it.items.isNotEmpty() }
+            }
+    }
+}
+
+internal fun ContinueWatchingItem.isSeriesContinueWatchingItem(): Boolean = when (this) {
+    is ContinueWatchingItem.NextUp -> true
+    is ContinueWatchingItem.InProgress -> {
+        val normalizedType = progress.contentType.trim().lowercase()
+        normalizedType in setOf("series", "tv", "show", "anime") ||
+            (progress.season != null && progress.episode != null)
+    }
+}
+
+internal fun buildContinueWatchingUiState(
+    items: List<ContinueWatchingItem>,
+    isSplit: Boolean,
+    priority: ContinueWatchingPriority
+): ContinueWatchingUiState {
+    if (!isSplit) {
+        return ContinueWatchingUiState.Combined(items = items)
+    }
+    val (seriesItems, movieItems) = items.partition { it.isSeriesContinueWatchingItem() }
+    return ContinueWatchingUiState.Separate(
+        seriesItems = seriesItems,
+        movieItems = movieItems,
+        priority = priority
+    )
+}
+
+internal fun observeContinueWatchingUiState(
+    watchHistoryFlow: Flow<List<ContinueWatchingItem>>,
+    isSplitFlow: Flow<Boolean>,
+    priorityFlow: Flow<ContinueWatchingPriority>
+): Flow<ContinueWatchingUiState> = combine(
+    watchHistoryFlow,
+    isSplitFlow,
+    priorityFlow
+) { items, isSplit, priority ->
+    buildContinueWatchingUiState(
+        items = items,
+        isSplit = isSplit,
+        priority = priority
+    )
+}
 
 @Immutable
 sealed class ContinueWatchingItem {
