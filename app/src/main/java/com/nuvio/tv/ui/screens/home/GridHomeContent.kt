@@ -226,13 +226,17 @@ fun GridHomeContent(
     val continueWatchingItems = remember(
         uiState.continueWatchingEnabled,
         uiState.continueWatchingItems,
+        uiState.showSeriesInCw,
+        uiState.showMoviesInCw,
         uiState.customPosterUrlPattern,
         uiState.customPosterEnabledScreens,
     ) {
         if (uiState.continueWatchingEnabled) {
-            uiState.continueWatchingItems.withCustomPosterUrls(
-                com.nuvio.tv.core.poster.patternForScreen(uiState.customPosterUrlPattern, com.nuvio.tv.core.poster.CustomPosterScreen.CONTINUE_WATCHING, uiState.customPosterEnabledScreens)
-            )
+            uiState.continueWatchingItems
+                .filterContinueWatchingByMediaType(uiState.showSeriesInCw, uiState.showMoviesInCw)
+                .withCustomPosterUrls(
+                    com.nuvio.tv.core.poster.patternForScreen(uiState.customPosterUrlPattern, com.nuvio.tv.core.poster.CustomPosterScreen.CONTINUE_WATCHING, uiState.customPosterEnabledScreens)
+                )
         } else {
             emptyList()
         }
@@ -240,7 +244,7 @@ fun GridHomeContent(
     val continueWatchingOffset = if (!uiState.continueWatchingEnabled) 0 else when (val cw = uiState.continueWatchingUiState) {
         is ContinueWatchingUiState.Combined -> if (cw.items.isNotEmpty()) 1 else 0
         is ContinueWatchingUiState.Separate -> cw.orderedRails.size
-    } + (if (uiState.upcomingItems.isNotEmpty()) 1 else 0)
+    } + (if (uiState.continueWatchingEnabled && uiState.showSeriesInCw && uiState.upcomingItems.isNotEmpty()) 1 else 0)
 
     LaunchedEffect(gridItems, gridFocusState.hasSavedFocus, gridFocusState.focusedItemKey) {
         // Restore once per screen entry, not again when background catalog loads finish.
@@ -561,8 +565,9 @@ fun GridHomeContent(
                 }
             }
 
+            val isCwSplit = uiState.isContinueWatchingSplit && uiState.showSeriesInCw && uiState.showMoviesInCw
             // Emit Continue Watching as a dedicated item
-            if (!uiState.isContinueWatchingSplit && continueWatchingItems.isNotEmpty()) {
+            if (!isCwSplit && continueWatchingItems.isNotEmpty()) {
                 item(
                     key = "continue_watching",
                     span = { GridItemSpan(maxLineSpan) },
@@ -629,7 +634,7 @@ fun GridHomeContent(
             }
 
             // Emit Upcoming section if SPLIT_UPCOMING mode has upcoming items
-            if (uiState.continueWatchingEnabled && uiState.isContinueWatchingSplit) {
+            if (uiState.continueWatchingEnabled && isCwSplit) {
                 val splitState = uiState.continueWatchingUiState as? ContinueWatchingUiState.Separate
                 splitState?.orderedRails?.forEachIndexed { railIndex, rail ->
                     val isSeriesRail = rail.category == ContinueWatchingMediaCategory.SERIES
@@ -717,7 +722,7 @@ fun GridHomeContent(
                 }
             }
 
-            if (uiState.continueWatchingEnabled && uiState.upcomingItems.isNotEmpty()) {
+            if (uiState.continueWatchingEnabled && uiState.showSeriesInCw && uiState.upcomingItems.isNotEmpty()) {
                 item(
                     key = "upcoming_section",
                     span = { GridItemSpan(maxLineSpan) },

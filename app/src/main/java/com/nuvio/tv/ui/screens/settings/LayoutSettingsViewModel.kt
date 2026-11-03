@@ -87,6 +87,8 @@ data class LayoutSettingsUiState(
     val showUnairedNextUp: Boolean = true,
     val continueWatchingEnabled: Boolean = true,
     val continueWatchingSortMode: ContinueWatchingSortMode = ContinueWatchingSortMode.DEFAULT,
+    val showSeriesInCw: Boolean = true,
+    val showMoviesInCw: Boolean = true,
     val isContinueWatchingSplit: Boolean = false,
     val continueWatchingPriority: ContinueWatchingPriority = ContinueWatchingPriority.SERIES_FIRST,
     val continueWatchingCardStyle: ContinueWatchingCardStyle = ContinueWatchingCardStyle.CARD,
@@ -153,6 +155,8 @@ sealed class LayoutSettingsEvent {
     data class SetShowUnairedNextUp(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingSortMode(val mode: ContinueWatchingSortMode) : LayoutSettingsEvent()
+    data class SetShowSeriesInCw(val enabled: Boolean) : LayoutSettingsEvent()
+    data class SetShowMoviesInCw(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingSplit(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetContinueWatchingPriority(val priority: ContinueWatchingPriority) : LayoutSettingsEvent()
     data class SetContinueWatchingCardStyle(val style: ContinueWatchingCardStyle) : LayoutSettingsEvent()
@@ -443,6 +447,20 @@ class LayoutSettingsViewModel @Inject constructor(
                 }
         }
         viewModelScope.launch {
+            layoutPreferenceDataStore.showSeriesInCw
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    updateUiStateIfChanged { it.copy(showSeriesInCw = enabled) }
+                }
+        }
+        viewModelScope.launch {
+            layoutPreferenceDataStore.showMoviesInCw
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    updateUiStateIfChanged { it.copy(showMoviesInCw = enabled) }
+                }
+        }
+        viewModelScope.launch {
             layoutPreferenceDataStore.isContinueWatchingSplit
                 .distinctUntilChanged()
                 .collect { enabled ->
@@ -508,6 +526,8 @@ class LayoutSettingsViewModel @Inject constructor(
             is LayoutSettingsEvent.SetShowUnairedNextUp -> setShowUnairedNextUp(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingEnabled -> setContinueWatchingEnabled(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingSortMode -> setContinueWatchingSortMode(event.mode)
+            is LayoutSettingsEvent.SetShowSeriesInCw -> setShowSeriesInCw(event.enabled)
+            is LayoutSettingsEvent.SetShowMoviesInCw -> setShowMoviesInCw(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingSplit -> setContinueWatchingSplit(event.enabled)
             is LayoutSettingsEvent.SetContinueWatchingPriority -> setContinueWatchingPriority(event.priority)
             is LayoutSettingsEvent.SetContinueWatchingCardStyle -> setContinueWatchingCardStyle(event.style)
@@ -922,6 +942,22 @@ class LayoutSettingsViewModel @Inject constructor(
         if (_uiState.value.alwaysShowLandscapeClearlogo == enabled) return
         viewModelScope.launch {
             layoutPreferenceDataStore.setAlwaysShowLandscapeClearlogo(enabled)
+        }
+    }
+
+    private fun setShowSeriesInCw(enabled: Boolean) {
+        if (_uiState.value.showSeriesInCw == enabled) return
+        if (!enabled && !_uiState.value.showMoviesInCw) return
+        viewModelScope.launch {
+            layoutPreferenceDataStore.setShowSeriesInCw(enabled)
+        }
+    }
+
+    private fun setShowMoviesInCw(enabled: Boolean) {
+        if (_uiState.value.showMoviesInCw == enabled) return
+        if (!enabled && !_uiState.value.showSeriesInCw) return
+        viewModelScope.launch {
+            layoutPreferenceDataStore.setShowMoviesInCw(enabled)
         }
     }
 

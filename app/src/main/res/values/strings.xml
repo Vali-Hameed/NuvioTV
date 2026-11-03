@@ -1110,6 +1110,10 @@
     <string name="upcoming_section_title">Upcoming</string>
     <string name="continue_watching_series_title">Continue Watching — TV Shows</string>
     <string name="continue_watching_movies_title">Continue Watching — Movies</string>
+    <string name="layout_cw_show_series">Show TV Shows</string>
+    <string name="layout_cw_show_series_sub">Include TV show progress and next up episodes in Continue Watching</string>
+    <string name="layout_cw_show_movies">Show Movies</string>
+    <string name="layout_cw_show_movies_sub">Include movie watch progress in Continue Watching</string>
     <string name="layout_cw_split">Split TV Shows &amp; Movies</string>
     <string name="layout_cw_split_sub">Show separate horizontal rows for TV Shows and Movies on Home</string>
     <string name="layout_cw_priority">Split Rail Priority</string>

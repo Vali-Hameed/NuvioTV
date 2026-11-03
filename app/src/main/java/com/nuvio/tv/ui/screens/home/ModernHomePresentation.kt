@@ -22,6 +22,8 @@ internal data class ModernHomePresentationInput(
     val isContinueWatchingSplit: Boolean = false,
     val continueWatchingPriority: com.nuvio.tv.domain.model.ContinueWatchingPriority =
         com.nuvio.tv.domain.model.ContinueWatchingPriority.SERIES_FIRST,
+    val showSeriesInCw: Boolean = true,
+    val showMoviesInCw: Boolean = true,
     val useLandscapePosters: Boolean,
     val showCatalogTypeSuffix: Boolean,
     val showFullReleaseDate: Boolean,
@@ -51,10 +53,16 @@ internal fun buildModernHomePresentation(
         val catalogRowLimit = maxCatalogRows?.coerceAtLeast(0)
         var renderedCatalogRows = 0
 
-        if (!input.isContinueWatchingSplit && input.continueWatchingItems.isNotEmpty()) {
+        val filteredCwItems = input.continueWatchingItems.filterContinueWatchingByMediaType(
+            input.showSeriesInCw,
+            input.showMoviesInCw
+        )
+        val isCwSplit = input.isContinueWatchingSplit && input.showSeriesInCw && input.showMoviesInCw
+
+        if (!isCwSplit && filteredCwItems.isNotEmpty()) {
             val reuseContinueWatchingRow =
                 cache.continueWatchingRow != null &&
-                    cache.continueWatchingItems == input.continueWatchingItems &&
+                    cache.continueWatchingItems == filteredCwItems &&
                     cache.continueWatchingTitle == strContinueWatching &&
                     cache.continueWatchingAirsDateTemplate == strAirsDate &&
                     cache.continueWatchingUpcomingLabel == strUpcoming &&
@@ -67,7 +75,7 @@ internal fun buildModernHomePresentation(
                     key = MODERN_CONTINUE_WATCHING_ROW_KEY,
                     title = strContinueWatching,
                     globalRowIndex = -1,
-                    items = input.continueWatchingItems.map { item ->
+                    items = filteredCwItems.map { item ->
                         buildContinueWatchingItem(
                             item = item,
                             useLandscapePosters = input.useLandscapePosters,
@@ -80,7 +88,7 @@ internal fun buildModernHomePresentation(
                     }.asStable()
                 )
             }
-            cache.continueWatchingItems = input.continueWatchingItems
+            cache.continueWatchingItems = filteredCwItems
             cache.continueWatchingTitle = strContinueWatching
             cache.continueWatchingAirsDateTemplate = strAirsDate
             cache.continueWatchingUpcomingLabel = strUpcoming
@@ -93,12 +101,14 @@ internal fun buildModernHomePresentation(
             cache.continueWatchingRow = null
         }
 
-        // Upcoming row (SPLIT_UPCOMING mode)
-        if (input.isContinueWatchingSplit && input.continueWatchingItems.isNotEmpty()) {
+        // Split Continue Watching rows
+        if (isCwSplit && filteredCwItems.isNotEmpty()) {
             val cwUiState = buildContinueWatchingUiState(
-                items = input.continueWatchingItems,
+                items = filteredCwItems,
                 isSplit = true,
-                priority = input.continueWatchingPriority
+                priority = input.continueWatchingPriority,
+                showSeries = input.showSeriesInCw,
+                showMovies = input.showMoviesInCw
             ) as? ContinueWatchingUiState.Separate
             val strContinueWatchingSeries = localizedContext.getString(R.string.continue_watching_series_title)
             val strContinueWatchingMovies = localizedContext.getString(R.string.continue_watching_movies_title)
@@ -128,7 +138,7 @@ internal fun buildModernHomePresentation(
             }
         }
         val strUpcomingSectionTitle = localizedContext.getString(R.string.upcoming_section_title)
-        if (input.upcomingItems.isNotEmpty()) {
+        if (input.showSeriesInCw && input.upcomingItems.isNotEmpty()) {
             val reuseUpcomingRow =
                 cache.upcomingRow != null &&
                     cache.upcomingItems == input.upcomingItems &&

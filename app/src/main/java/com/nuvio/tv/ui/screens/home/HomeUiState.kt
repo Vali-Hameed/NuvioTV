@@ -70,6 +70,8 @@ data class HomeUiState(
     val blurUnwatchedEpisodes: Boolean = false,
     val useEpisodeThumbnailsInCw: Boolean = true,
     val continueWatchingEnabled: Boolean = true,
+    val showSeriesInCw: Boolean = true,
+    val showMoviesInCw: Boolean = true,
     val isContinueWatchingSplit: Boolean = false,
     val continueWatchingPriority: ContinueWatchingPriority = ContinueWatchingPriority.SERIES_FIRST,
     val continueWatchingCardStyle: ContinueWatchingCardStyle = ContinueWatchingCardStyle.CARD,
@@ -93,7 +95,9 @@ val HomeUiState.continueWatchingUiState: ContinueWatchingUiState
     get() = buildContinueWatchingUiState(
         items = if (continueWatchingEnabled) continueWatchingItems else emptyList(),
         isSplit = isContinueWatchingSplit,
-        priority = continueWatchingPriority
+        priority = continueWatchingPriority,
+        showSeries = showSeriesInCw,
+        showMovies = showMoviesInCw
     )
 
 enum class ContinueWatchingMediaCategory {
@@ -140,15 +144,31 @@ internal fun ContinueWatchingItem.isSeriesContinueWatchingItem(): Boolean = when
     }
 }
 
+internal fun List<ContinueWatchingItem>.filterContinueWatchingByMediaType(
+    showSeries: Boolean,
+    showMovies: Boolean
+): List<ContinueWatchingItem> {
+    if (showSeries && showMovies) return this
+    if (!showSeries && !showMovies) return this
+    return filter { item ->
+        val isSeries = item.isSeriesContinueWatchingItem()
+        if (isSeries) showSeries else showMovies
+    }
+}
+
 internal fun buildContinueWatchingUiState(
     items: List<ContinueWatchingItem>,
     isSplit: Boolean,
     priority: ContinueWatchingPriority
+    showSeries: Boolean = true,
+    showMovies: Boolean = true
 ): ContinueWatchingUiState {
-    if (!isSplit) {
-        return ContinueWatchingUiState.Combined(items = items)
+    val filtered = items.filterContinueWatchingByMediaType(showSeries, showMovies)
+    val effectiveSplit = isSplit && showSeries && showMovies
+    if (!effectiveSplit) {
+        return ContinueWatchingUiState.Combined(items = filtered)
     }
-    val (seriesItems, movieItems) = items.partition { it.isSeriesContinueWatchingItem() }
+    val (seriesItems, movieItems) = filtered.partition { it.isSeriesContinueWatchingItem() }
     return ContinueWatchingUiState.Separate(
         seriesItems = seriesItems,
         movieItems = movieItems,
@@ -159,16 +179,22 @@ internal fun buildContinueWatchingUiState(
 internal fun observeContinueWatchingUiState(
     watchHistoryFlow: Flow<List<ContinueWatchingItem>>,
     isSplitFlow: Flow<Boolean>,
-    priorityFlow: Flow<ContinueWatchingPriority>
+    priorityFlow: Flow<ContinueWatchingPriority>,
+    showSeriesFlow: Flow<Boolean> = kotlinx.coroutines.flow.flowOf(true),
+    showMoviesFlow: Flow<Boolean> = kotlinx.coroutines.flow.flowOf(true)
 ): Flow<ContinueWatchingUiState> = combine(
     watchHistoryFlow,
     isSplitFlow,
-    priorityFlow
-) { items, isSplit, priority ->
+    priorityFlow,
+    showSeriesFlow,
+    showMoviesFlow
+) { items, isSplit, priority, showSeries, showMovies ->
     buildContinueWatchingUiState(
         items = items,
         isSplit = isSplit,
-        priority = priority
+        priority = priority,
+        showSeries = showSeries,
+        showMovies = showMovies
     )
 }
 

@@ -461,7 +461,7 @@ fun ClassicHomeContent(
             val cwOffset = if (!uiState.continueWatchingEnabled) 0 else when (val cw = uiState.continueWatchingUiState) {
                 is ContinueWatchingUiState.Combined -> if (cw.items.isNotEmpty()) 1 else 0
                 is ContinueWatchingUiState.Separate -> cw.orderedRails.size
-            } + (if (uiState.upcomingItems.isNotEmpty()) 1 else 0)
+            } + (if (uiState.continueWatchingEnabled && uiState.showSeriesInCw && uiState.upcomingItems.isNotEmpty()) 1 else 0)
             val rowsOffset = heroOffset + cwOffset
             for (idx in firstVisible.coerceAtLeast(0)..(lastVisible + prefetchAhead)) {
                 val rowIdx = idx - rowsOffset
@@ -640,7 +640,8 @@ fun ClassicHomeContent(
             }
         }
 
-        if (uiState.continueWatchingEnabled && !uiState.isContinueWatchingSplit && uiState.continueWatchingItems.isNotEmpty()) {
+        val cwCombinedState = uiState.continueWatchingUiState as? ContinueWatchingUiState.Combined
+        if (uiState.continueWatchingEnabled && cwCombinedState != null && cwCombinedState.items.isNotEmpty()) {
             item(key = "continue_watching", contentType = "continue_watching") {
                 LaunchedEffect(cwPendingScrollToStart.intValue) {
                     if (cwPendingScrollToStart.intValue > 0) {
@@ -651,11 +652,11 @@ fun ClassicHomeContent(
                 }
                 ContinueWatchingSection(
                     items = remember(
-                        uiState.continueWatchingItems,
+                        cwCombinedState.items,
                         uiState.customPosterUrlPattern,
                         uiState.customPosterEnabledScreens,
                     ) {
-                        uiState.continueWatchingItems.withCustomPosterUrls(
+                        cwCombinedState.items.withCustomPosterUrls(
                             com.nuvio.tv.core.poster.patternForScreen(uiState.customPosterUrlPattern, com.nuvio.tv.core.poster.CustomPosterScreen.CONTINUE_WATCHING, uiState.customPosterEnabledScreens)
                         )
                     },
@@ -707,7 +708,7 @@ fun ClassicHomeContent(
                         cwFocusedIndex.intValue = itemIndex
                         onFocusedRowKeyChanged(null)
                         if (uiState.classicFocusGradientEnabled) {
-                            focusedArtwork = uiState.continueWatchingItems.getOrNull(itemIndex)
+                            focusedArtwork = cwCombinedState.items.getOrNull(itemIndex)
                                 ?.toClassicFocusArtwork(uiState.focusedPosterBackdropExpandEnabled)
                         }
                     },
@@ -826,7 +827,7 @@ fun ClassicHomeContent(
             }
         }
 
-        if (uiState.continueWatchingEnabled && uiState.upcomingItems.isNotEmpty()) {
+        if (uiState.continueWatchingEnabled && uiState.showSeriesInCw && uiState.upcomingItems.isNotEmpty()) {
             item(key = "upcoming_section", contentType = "upcoming_section") {
                 LaunchedEffect(upcomingPendingScrollToStart.intValue) {
                     if (upcomingPendingScrollToStart.intValue > 0) {

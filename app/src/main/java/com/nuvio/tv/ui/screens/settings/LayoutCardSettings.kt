@@ -116,21 +116,48 @@ internal fun LayoutContinueWatchingSection(
         }
 
         SettingsToggleRow(
-            title = stringResource(R.string.layout_cw_split),
-            subtitle = stringResource(R.string.layout_cw_split_sub),
-            checked = uiState.isContinueWatchingSplit,
-            onToggle = { onEvent(LayoutSettingsEvent.SetContinueWatchingSplit(!uiState.isContinueWatchingSplit)) }
+            title = stringResource(R.string.layout_cw_show_series),
+            subtitle = stringResource(R.string.layout_cw_show_series_sub),
+            checked = uiState.showSeriesInCw,
+            onToggle = {
+                val next = !uiState.showSeriesInCw
+                if (next || uiState.showMoviesInCw) {
+                    onEvent(LayoutSettingsEvent.SetShowSeriesInCw(next))
+                }
+            }
         )
-        if (uiState.isContinueWatchingSplit) {
-            SettingsActionRow(
-                title = stringResource(R.string.layout_cw_priority),
-                subtitle = stringResource(R.string.layout_cw_priority_sub),
-                value = when (uiState.continueWatchingPriority) {
-                    ContinueWatchingPriority.SERIES_FIRST -> stringResource(R.string.layout_cw_priority_series_first)
-                    ContinueWatchingPriority.MOVIES_FIRST -> stringResource(R.string.layout_cw_priority_movies_first)
-                },
-                onClick = { showPriorityDialog = true }
+
+        SettingsToggleRow(
+            title = stringResource(R.string.layout_cw_show_movies),
+            subtitle = stringResource(R.string.layout_cw_show_movies_sub),
+            checked = uiState.showMoviesInCw,
+            onToggle = {
+                val next = !uiState.showMoviesInCw
+                if (next || uiState.showSeriesInCw) {
+                    onEvent(LayoutSettingsEvent.SetShowMoviesInCw(next))
+                }
+            }
+        )
+
+        val splitAvailable = uiState.showSeriesInCw && uiState.showMoviesInCw
+        if (splitAvailable) {
+            SettingsToggleRow(
+                title = stringResource(R.string.layout_cw_split),
+                subtitle = stringResource(R.string.layout_cw_split_sub),
+                checked = uiState.isContinueWatchingSplit,
+                onToggle = { onEvent(LayoutSettingsEvent.SetContinueWatchingSplit(!uiState.isContinueWatchingSplit)) }
             )
+            if (uiState.isContinueWatchingSplit) {
+                SettingsActionRow(
+                    title = stringResource(R.string.layout_cw_priority),
+                    subtitle = stringResource(R.string.layout_cw_priority_sub),
+                    value = when (uiState.continueWatchingPriority) {
+                        ContinueWatchingPriority.SERIES_FIRST -> stringResource(R.string.layout_cw_priority_series_first)
+                        ContinueWatchingPriority.MOVIES_FIRST -> stringResource(R.string.layout_cw_priority_movies_first)
+                    },
+                    onClick = { showPriorityDialog = true }
+                )
+            }
         }
         val episodeThumbnailsApply = uiState.continueWatchingCardStyle != ContinueWatchingCardStyle.POSTER
         if (episodeThumbnailsApply) {

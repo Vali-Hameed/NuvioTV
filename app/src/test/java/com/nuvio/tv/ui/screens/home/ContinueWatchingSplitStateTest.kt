@@ -130,5 +130,86 @@ class ContinueWatchingSplitStateTest {
         val splitMoviesFirst = observedFlow.first() as ContinueWatchingUiState.Separate
         assertEquals(ContinueWatchingMediaCategory.MOVIES, splitMoviesFirst.orderedRails.first().category)
     }
+
+    @Test
+    fun `buildContinueWatchingUiState filters out series when showSeries is false`() {
+        val state = buildContinueWatchingUiState(
+            items = listOf(seriesItem, movieItem),
+            isSplit = false,
+            priority = ContinueWatchingPriority.SERIES_FIRST,
+            showSeries = false,
+            showMovies = true
+        )
+
+        assertTrue(state is ContinueWatchingUiState.Combined)
+        val combined = state as ContinueWatchingUiState.Combined
+        assertEquals(listOf(movieItem), combined.items)
+    }
+
+    @Test
+    fun `buildContinueWatchingUiState filters out movies when showMovies is false`() {
+        val state = buildContinueWatchingUiState(
+            items = listOf(seriesItem, movieItem),
+            isSplit = false,
+            priority = ContinueWatchingPriority.SERIES_FIRST,
+            showSeries = true,
+            showMovies = false
+        )
+
+        assertTrue(state is ContinueWatchingUiState.Combined)
+        val combined = state as ContinueWatchingUiState.Combined
+        assertEquals(listOf(seriesItem), combined.items)
+    }
+
+    @Test
+    fun `buildContinueWatchingUiState forces Combined when split is requested but only one media type is enabled`() {
+        val state = buildContinueWatchingUiState(
+            items = listOf(seriesItem, movieItem),
+            isSplit = true,
+            priority = ContinueWatchingPriority.SERIES_FIRST,
+            showSeries = true,
+            showMovies = false
+        )
+
+        assertTrue(state is ContinueWatchingUiState.Combined)
+        val combined = state as ContinueWatchingUiState.Combined
+        assertEquals(listOf(seriesItem), combined.items)
+    }
+
+    @Test
+    fun `filterContinueWatchingByMediaType preserves items when both are false as safe fallback`() {
+        val items = listOf(seriesItem, movieItem)
+        val filtered = items.filterContinueWatchingByMediaType(showSeries = false, showMovies = false)
+        assertEquals(items, filtered)
+    }
+
+    @Test
+    fun `observeContinueWatchingUiState reactively responds to showSeries and showMovies flows`() = runTest {
+        val historyFlow = MutableStateFlow(listOf(seriesItem, movieItem))
+        val splitFlow = MutableStateFlow(false)
+        val priorityFlow = MutableStateFlow(ContinueWatchingPriority.SERIES_FIRST)
+        val showSeriesFlow = MutableStateFlow(true)
+        val showMoviesFlow = MutableStateFlow(true)
+
+        val observedFlow = observeContinueWatchingUiState(
+            watchHistoryFlow = historyFlow,
+            isSplitFlow = splitFlow,
+            priorityFlow = priorityFlow,
+            showSeriesFlow = showSeriesFlow,
+            showMoviesFlow = showMoviesFlow
+        )
+
+        val initial = observedFlow.first() as ContinueWatchingUiState.Combined
+        assertEquals(listOf(seriesItem, movieItem), initial.items)
+
+        showSeriesFlow.value = false
+        val moviesOnly = observedFlow.first() as ContinueWatchingUiState.Combined
+        assertEquals(listOf(movieItem), moviesOnly.items)
+
+        showSeriesFlow.value = true
+        showMoviesFlow.value = false
+        val seriesOnly = observedFlow.first() as ContinueWatchingUiState.Combined
+        assertEquals(listOf(seriesItem), seriesOnly.items)
+    }
 }
 

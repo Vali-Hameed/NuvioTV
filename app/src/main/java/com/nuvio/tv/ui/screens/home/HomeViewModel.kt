@@ -534,17 +534,21 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 layoutPreferenceDataStore.isContinueWatchingSplit.distinctUntilChanged(),
-                layoutPreferenceDataStore.continueWatchingPriority.distinctUntilChanged()
-            ) { isSplit, priority ->
-                isSplit to priority
-            }.collect { (isSplit, priority) ->
+                layoutPreferenceDataStore.continueWatchingPriority.distinctUntilChanged(),
+                layoutPreferenceDataStore.showSeriesInCw.distinctUntilChanged(),
+                layoutPreferenceDataStore.showMoviesInCw.distinctUntilChanged()
+            ) { isSplit, priority, showSeries, showMovies ->
+                CwSplitPrefs(isSplit, priority, showSeries, showMovies)
+            }.collect { prefs ->
                 _uiState.update {
                     it.copy(
-                        isContinueWatchingSplit = isSplit,
-                        continueWatchingPriority = priority
+                        isContinueWatchingSplit = prefs.isSplit,
+                        continueWatchingPriority = prefs.priority,
+                        showSeriesInCw = prefs.showSeries,
+                        showMoviesInCw = prefs.showMovies
                     )
                 }
-                }
+            }
         }
         viewModelScope.launch {
             var initialPattern = true
@@ -1070,3 +1074,5 @@ class HomeViewModel @Inject constructor(
         super.onCleared()
     }
 }
+
+private data class CwSplitPrefs(val isSplit: Boolean, val priority: com.nuvio.tv.domain.model.ContinueWatchingPriority, val showSeries: Boolean, val showMovies: Boolean)

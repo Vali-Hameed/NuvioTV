@@ -326,6 +326,8 @@ internal fun HomeViewModel.observeModernHomePresentationPipeline() {
                     upcomingItems = overlay.upcomingItems,
                     isContinueWatchingSplit = state.isContinueWatchingSplit,
                     continueWatchingPriority = state.continueWatchingPriority,
+                    showSeriesInCw = state.showSeriesInCw,
+                    showMoviesInCw = state.showMoviesInCw,
                     useLandscapePosters = state.modernLandscapePostersEnabled,
                     showCatalogTypeSuffix = state.catalogTypeSuffixEnabled,
                     showFullReleaseDate = state.showFullReleaseDate,

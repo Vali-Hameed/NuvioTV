@@ -118,6 +118,8 @@ class LayoutPreferenceDataStore @Inject constructor(
     private val nextUpFromFurthestEpisodeKey = booleanPreferencesKey("next_up_from_furthest_episode")
     private val blurContinueWatchingNextUpKey = booleanPreferencesKey("blur_continue_watching_next_up")
     private val continueWatchingSortModeKey = stringPreferencesKey("continue_watching_sort_mode")
+    private val showSeriesInCwKey = booleanPreferencesKey("show_series_in_cw")
+    private val showMoviesInCwKey = booleanPreferencesKey("show_movies_in_cw")
     private val isContinueWatchingSplitKey = booleanPreferencesKey("is_continue_watching_split")
     private val continueWatchingPriorityKey = stringPreferencesKey("continue_watching_priority")
     private val detailPageTrailerButtonEnabledKey = booleanPreferencesKey("detail_page_trailer_button_enabled")
@@ -397,6 +399,18 @@ class LayoutPreferenceDataStore @Inject constructor(
         val stored = prefs[continueWatchingSortModeKey] ?: ContinueWatchingSortMode.DEFAULT.name
         runCatching { ContinueWatchingSortMode.valueOf(stored) }
             .getOrDefault(ContinueWatchingSortMode.DEFAULT)
+    }
+
+    val showSeriesInCw: Flow<Boolean> = profileFlow { prefs ->
+        val series = prefs[showSeriesInCwKey] ?: true
+        val movies = prefs[showMoviesInCwKey] ?: true
+        if (!series && !movies) true else series
+    }
+
+    val showMoviesInCw: Flow<Boolean> = profileFlow { prefs ->
+        val series = prefs[showSeriesInCwKey] ?: true
+        val movies = prefs[showMoviesInCwKey] ?: true
+        if (!series && !movies) true else movies
     }
 
     val isContinueWatchingSplit: Flow<Boolean> = profileFlow { prefs ->
@@ -828,6 +842,26 @@ class LayoutPreferenceDataStore @Inject constructor(
     suspend fun setContinueWatchingSortMode(mode: ContinueWatchingSortMode) {
         store().edit { prefs ->
             prefs[continueWatchingSortModeKey] = mode.name
+        }
+    }
+
+    suspend fun setShowSeriesInCw(enabled: Boolean) {
+        store().edit { prefs ->
+            val currentMovies = prefs[showMoviesInCwKey] ?: true
+            if (!enabled && !currentMovies) {
+                return@edit
+            }
+            prefs[showSeriesInCwKey] = enabled
+        }
+    }
+
+    suspend fun setShowMoviesInCw(enabled: Boolean) {
+        store().edit { prefs ->
+            val currentSeries = prefs[showSeriesInCwKey] ?: true
+            if (!enabled && !currentSeries) {
+                return@edit
+            }
+            prefs[showMoviesInCwKey] = enabled
         }
     }
 
